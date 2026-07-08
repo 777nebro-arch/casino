@@ -8,7 +8,7 @@ permissions:
 on:
   push:
     branches:
-      - main # измените на нужную ветку, если нужно
+      - main
 
 jobs:
   build-and-deploy:
@@ -18,23 +18,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build
-        run: npm run build
-
       - name: Upload artifact for GitHub Pages
         uses: actions/upload-artifact@v4
         with:
           name: github-pages
-          path: ./build
-          retention-days: 1
+          path: .
 
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v1
