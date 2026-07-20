@@ -27,6 +27,8 @@
         .info-item span { color: #ffd700; font-size: 18px; }
         .info-item .round { color: #00ff88; margin-left: 4px; }
         .bonus-indicator { display: flex; gap: 4px; margin-left: 8px; font-size: 20px; }
+        .progress-bar { flex: 1; height: 6px; background: #222; border-radius: 3px; margin-left: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #00ff88, #00aaff); border-radius: 3px; transition: width 0.2s; }
         
         /* Кнопки */
         .fullscreen-btn, .close-btn {
@@ -40,13 +42,41 @@
         .fullscreen-btn:active, .close-btn:active { transform: scale(0.85); background: rgba(0, 180, 255, 0.2); box-shadow: 0 0 30px rgba(0, 180, 255, 0.6); }
         .fullscreen-btn { left: 12px; }
         .close-btn { right: 12px; }
-        
+
+        /* Экран выбора сложности */
+        .difficulty-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 15, 0.85); backdrop-filter: blur(8px);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 40; padding: 20px;
+        }
+        .difficulty-screen h1 { color: #00d4ff; font-size: 28px; margin-bottom: 10px; text-shadow: 0 0 20px rgba(0,180,255,0.5); }
+        .difficulty-screen p { color: #888; font-size: 16px; margin-bottom: 20px; text-align: center; }
+        .diff-buttons { display: flex; flex-direction: column; gap: 12px; width: 80%; max-width: 300px; }
+        .diff-btn {
+            padding: 16px; border: 2px solid rgba(0, 180, 255, 0.3);
+            background: rgba(20, 30, 50, 0.6); color: #fff; font-size: 20px; font-weight: bold;
+            border-radius: 12px; text-align: center; cursor: pointer; transition: all 0.2s;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+        }
+        .diff-btn:hover { border-color: #00d4ff; box-shadow: 0 0 30px rgba(0,180,255,0.3); transform: scale(1.02); }
+        .diff-btn:active { transform: scale(0.95); }
+        .diff-btn .sub { font-size: 12px; color: #aaa; font-weight: normal; display: block; margin-top: 4px; }
+        .diff-btn.easy { border-color: #44ff44; }
+        .diff-btn.easy:hover { border-color: #88ff88; box-shadow: 0 0 30px rgba(68,255,68,0.3); }
+        .diff-btn.normal { border-color: #ffaa00; }
+        .diff-btn.normal:hover { border-color: #ffcc44; box-shadow: 0 0 30px rgba(255,170,0,0.3); }
+        .diff-btn.hard { border-color: #ff4444; }
+        .diff-btn.hard:hover { border-color: #ff6666; box-shadow: 0 0 30px rgba(255,68,68,0.3); }
+
         @media (max-width: 500px) {
             .joystick { width: 100px; height: 100px; }
             .joystick-knob { width: 40px; height: 40px; }
             .fire-btn { width: 85px; height: 85px; font-size: 26px; }
             .info { font-size: 14px; padding: 4px 10px; }
             .fullscreen-btn, .close-btn { width: 36px; height: 36px; font-size: 20px; top: 8px; }
+            .difficulty-screen h1 { font-size: 24px; }
+            .diff-btn { font-size: 18px; padding: 12px; }
         }
         @media (max-width: 380px) {
             .joystick { width: 80px; height: 80px; }
@@ -64,11 +94,32 @@
         <div class="info-item">👾 <span id="enemiesDisplay">0</span></div>
         <div class="info-item">🎯 <span id="roundDisplay" class="round">1</span></div>
         <div class="bonus-indicator" id="bonusIndicator"></div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
     </div>
     <div class="game-container">
         <button class="fullscreen-btn" id="fullscreenBtn">⛶</button>
         <button class="close-btn" id="closeBtn">✕</button>
         <canvas id="gameCanvas" width="780" height="780"></canvas>
+        
+        <!-- Экран выбора сложности -->
+        <div class="difficulty-screen" id="difficultyScreen">
+            <h1>🎮 Танчики 90х</h1>
+            <p>Выберите уровень сложности</p>
+            <div class="diff-buttons">
+                <div class="diff-btn easy" data-diff="easy">
+                    🟢 Лёгкий
+                    <span class="sub">Медленные враги, больше жизней, меньше стен</span>
+                </div>
+                <div class="diff-btn normal" data-diff="normal">
+                    🟡 Средний
+                    <span class="sub">Сбалансированный вызов</span>
+                </div>
+                <div class="diff-btn hard" data-diff="hard">
+                    🔴 Сложный
+                    <span class="sub">Быстрые враги, меньше жизней, плотные стены</span>
+                </div>
+            </div>
+        </div>
     </div>
     <div class="controls">
         <div class="joystick-area"><div class="joystick" id="joystick"><div class="joystick-knob" id="joystickKnob"></div></div></div>
@@ -97,26 +148,65 @@
         const enemiesSpan = document.getElementById('enemiesDisplay');
         const roundSpan = document.getElementById('roundDisplay');
         const bonusIndicator = document.getElementById('bonusIndicator');
+        const progressFill = document.getElementById('progressFill');
+        const difficultyScreen = document.getElementById('difficultyScreen');
 
         const TILE = 60; const COLS = 13; const ROWS = 13;
         const PLAYER_SPEED = 3.5;
         const ENEMY_BASE_SPEED = 1.5;
         const BULLET_SPEED = 7.0;
-        const MAX_ENEMIES_ON_SCREEN = 4;
-        const SPAWN_DELAY = 80;
+
+        // ---------- Настройки сложности ----------
+        const DIFFICULTY_SETTINGS = {
+            easy: {
+                enemySpeedMult: 0.7,
+                enemyFireRateMult: 0.6,
+                enemiesPerRoundBase: 5,
+                maxEnemies: 3,
+                lives: 5,
+                wallDensity: 0.25,
+                steelChance: 0.1,
+                armoredChance: 0.0
+            },
+            normal: {
+                enemySpeedMult: 1.0,
+                enemyFireRateMult: 1.0,
+                enemiesPerRoundBase: 8,
+                maxEnemies: 4,
+                lives: 3,
+                wallDensity: 0.35,
+                steelChance: 0.15,
+                armoredChance: 0.15
+            },
+            hard: {
+                enemySpeedMult: 1.4,
+                enemyFireRateMult: 1.5,
+                enemiesPerRoundBase: 12,
+                maxEnemies: 5,
+                lives: 2,
+                wallDensity: 0.45,
+                steelChance: 0.25,
+                armoredChance: 0.3
+            }
+        };
+
+        // ---------- Текущие параметры игры ----------
+        let difficulty = 'normal'; // будет установлено через выбор
+        let settings = DIFFICULTY_SETTINGS[difficulty];
 
         // ---------- Состояние игры ----------
         let gameOver = false, win = false, score = 0, lives = 3, frame = 0;
         let enemiesAlive = 0, currentRound = 1, enemiesPerRound = 8;
         let enemiesSpawnedInRound = 0, enemiesKilledInRound = 0, roundComplete = false;
-        let playerBonuses = { speed: 0, shield: 0, power: 0 }; // таймеры бонусов
+        let playerBonuses = { speed: 0, shield: 0, power: 0 };
+        let MAX_ENEMIES_ON_SCREEN = 4;
+        let SPAWN_DELAY = 80;
 
         // ---------- Игрок ----------
         const player = { x: 1*TILE, y: 12*TILE, w: TILE-2, h: TILE-2, dir:0, speed:PLAYER_SPEED, cooldown:0, alive:true, respawnTimer:0 };
 
         let bullets = [], enemies = [], walls = [], base = null, spawnTimer = 0;
-        let particles = [];
-        let bonuses = []; // бонусы на поле
+        let particles = [], bonuses = [];
 
         // ---------- Звук ----------
         let audioCtx = null;
@@ -151,7 +241,6 @@
         }
         function vibrate(d) {
             try { if (navigator.vibrate) navigator.vibrate(d); } catch(e) {}
-            // fallback звук
             try {
                 if (audioCtx) {
                     const osc = audioCtx.createOscillator();
@@ -221,7 +310,6 @@
                 b.y += b.vy;
                 b.bob += 0.1;
                 if (b.y > canvas.height) { bonuses.splice(i,1); continue; }
-                // проверка подбора игроком
                 if (player.alive) {
                     if (b.x + b.w > player.x && b.x < player.x + player.w &&
                         b.y + b.h > player.y && b.y < player.y + player.h) {
@@ -250,15 +338,16 @@
             if (playerBonuses.power > 0) str += '💥';
             bonusIndicator.textContent = str;
         }
-        // ---------- Генерация карты ----------
+
+        // ---------- Генерация карты с учётом сложности ----------
         function generateRandomMap() {
             walls = [];
             base = { x: 6*TILE, y: 12*TILE, w: TILE, h: TILE, alive: true };
             const defense = [{x:5,y:11},{x:6,y:11},{x:7,y:11},{x:5,y:12},{x:7,y:12}];
             for (let d of defense) walls.push({ x: d.x*TILE, y: d.y*TILE, w: TILE, h: TILE, type:'brick', hp:2 });
 
-            const density = 0.35 + (currentRound * 0.01);
-            const steelChance = 0.15;
+            const density = settings.wallDensity + (currentRound * 0.01);
+            const steelChance = settings.steelChance;
             for (let r=0; r<ROWS; r++) {
                 for (let c=0; c<6; c++) {
                     if (defense.some(d=>d.x===c && d.y===r)) continue;
@@ -289,25 +378,38 @@
 
         function loadLevel() { generateRandomMap(); }
 
+        // ---------- Запуск раунда с учётом сложности ----------
         function startNewRound() {
             loadLevel();
             player.alive = true; player.cooldown = 0; player.respawnTimer = 0;
             enemies = []; bullets = []; particles = []; bonuses = [];
             enemiesAlive = 0; enemiesSpawnedInRound = 0; enemiesKilledInRound = 0;
             roundComplete = false; spawnTimer = 0;
-            enemiesPerRound = 6 + (currentRound-1)*2;
-            if (enemiesPerRound > 20) enemiesPerRound = 20;
+            enemiesPerRound = settings.enemiesPerRoundBase + (currentRound-1)*2;
+            if (enemiesPerRound > 25) enemiesPerRound = 25;
             if (currentRound > 1) { lives++; playSound('win'); vibrate(200); }
             updateInfo(); roundSpan.textContent = currentRound;
+            updateProgressBar();
         }
 
-        function initGame() {
-            score = 0; lives = 3; currentRound = 1; enemiesPerRound = 8;
+        // ---------- Инициализация игры с выбранной сложностью ----------
+        function initGame(diff) {
+            difficulty = diff || difficulty;
+            settings = DIFFICULTY_SETTINGS[difficulty];
+            MAX_ENEMIES_ON_SCREEN = settings.maxEnemies;
+            SPAWN_DELAY = 80;
+            lives = settings.lives;
+            score = 0;
+            currentRound = 1;
             gameOver = false; win = false; particles = []; bonuses = [];
-            loadLevel(); player.alive = true; enemies = []; bullets = []; enemiesAlive = 0;
             playerBonuses = { speed:0, shield:0, power:0 };
             updateBonusIndicator();
+            loadLevel();
+            player.alive = true;
+            player.x = 1*TILE; player.y = 12*TILE; player.dir = 0;
+            enemies = []; bullets = []; enemiesAlive = 0;
             updateInfo(); roundSpan.textContent = currentRound;
+            updateProgressBar();
         }
 
         // ---------- Коллизии ----------
@@ -328,7 +430,7 @@
             return (x < player.x+player.w && x+w > player.x && y < player.y+player.h && y+h > player.y);
         }
 
-        // ---------- Спавн врага с типом ----------
+        // ---------- Спавн врага с типом и учётом сложности ----------
         function spawnEnemy() {
             if (enemiesAlive >= MAX_ENEMIES_ON_SCREEN || gameOver || win || enemiesSpawnedInRound >= enemiesPerRound) return false;
             const spawnPoints = [{x:1*TILE,y:1*TILE},{x:6*TILE,y:1*TILE},{x:11*TILE,y:1*TILE}];
@@ -344,15 +446,14 @@
             }
             if (!pos) return false;
             
-            // Выбор типа врага
             const rnd = Math.random();
             let type = 'normal';
             let hp = 1, speedMult = 1, fireRate = 1;
             if (currentRound > 2 && rnd < 0.2) { type = 'fast'; speedMult = 1.6; }
-            else if (currentRound > 3 && rnd < 0.35) { type = 'armored'; hp = 2; }
+            else if (currentRound > 3 && rnd < settings.armoredChance) { type = 'armored'; hp = 2; }
             else if (currentRound > 4 && rnd < 0.45) { type = 'shooter'; fireRate = 0.5; }
 
-            const speed = (ENEMY_BASE_SPEED + Math.random()*0.6 + currentRound*0.05) * speedMult;
+            const speed = (ENEMY_BASE_SPEED * settings.enemySpeedMult + Math.random()*0.6 + currentRound*0.05) * speedMult;
             const enemy = { x:pos.x, y:pos.y, w:TILE-2, h:TILE-2, dir:2, speed:Math.min(speed,4.0), alive:true, cooldown:0, moveDir:2, changeDirTimer:0, hp, type, fireRate };
             enemies.push(enemy); enemiesAlive++; enemiesSpawnedInRound++;
             spawnExplosion(pos.x + TILE/2, pos.y + TILE/2, 20);
@@ -380,7 +481,6 @@
             if (gameOver || win) return;
             frame++;
 
-            // Обновление таймеров бонусов
             if (playerBonuses.speed > 0) playerBonuses.speed--;
             if (playerBonuses.power > 0) playerBonuses.power--;
             updateBonusIndicator();
@@ -443,7 +543,6 @@
                 if (!e.alive) continue;
                 e.changeDirTimer--;
                 if (e.changeDirTimer <= 0) {
-                    // Интеллект: иногда поворачиваем к игроку
                     if (player.alive && Math.random() < 0.3) {
                         const dx = player.x - e.x, dy = player.y - e.y;
                         if (Math.abs(dx) > Math.abs(dy)) e.moveDir = dx > 0 ? 1 : 3;
@@ -469,13 +568,15 @@
                     e.changeDirTimer = 0;
                 }
                 if (e.cooldown > 0) e.cooldown--;
-                if (e.cooldown === 0 && e.alive && Math.random() < (0.025 + currentRound*0.003) * (e.type === 'shooter' ? 2 : 1)) {
+                // частота стрельбы с учётом сложности
+                const fireChance = (0.025 + currentRound*0.003) * settings.enemyFireRateMult;
+                if (e.cooldown === 0 && e.alive && Math.random() < fireChance * (e.type === 'shooter' ? 2 : 1)) {
                     fireBullet(e.x, e.y, e.dir, 'enemy');
                     e.cooldown = (45 + Math.floor(Math.random()*30)) * (e.type === 'shooter' ? 0.6 : 1);
                 }
             }
 
-            // Спавн врагов
+            // Спавн
             if (!roundComplete && !gameOver) {
                 spawnTimer--;
                 if (spawnTimer <= 0 && enemiesAlive < MAX_ENEMIES_ON_SCREEN && enemiesSpawnedInRound < enemiesPerRound) {
@@ -538,7 +639,7 @@
                                 e.alive = false; enemiesAlive--; enemiesKilledInRound++;
                                 score += 10 + currentRound*2;
                                 playSound('explode'); vibrate(80); spawnExplosion(e.x + TILE/2, e.y + TILE/2, 35);
-                                dropBonus(e.x + TILE/2, e.y + TILE/2); // бонус при убийстве
+                                dropBonus(e.x + TILE/2, e.y + TILE/2);
                                 if (enemiesKilledInRound >= enemiesPerRound) {
                                     roundComplete = true;
                                     playSound('win'); vibrate(200);
@@ -554,7 +655,6 @@
                 if (remove) bullets.splice(i,1);
             }
 
-            // Проверка завершения раунда (если все враги убиты, но спавн закончился)
             if (!roundComplete && !gameOver && enemiesAlive === 0 && enemiesSpawnedInRound >= enemiesPerRound) {
                 roundComplete = true;
                 playSound('win'); vibrate(200);
@@ -566,6 +666,7 @@
             updateParticles();
             updateBonuses();
             updateInfo();
+            updateProgressBar();
         }
 
         function updateInfo() {
@@ -575,20 +676,24 @@
             roundSpan.textContent = currentRound;
         }
 
+        function updateProgressBar() {
+            const total = enemiesPerRound;
+            const done = enemiesKilledInRound;
+            const pct = total > 0 ? Math.min(100, (done / total) * 100) : 0;
+            progressFill.style.width = pct + '%';
+        }
+
         // ---------- Рисование ----------
         function draw() {
             ctx.clearRect(0,0,canvas.width,canvas.height);
             ctx.fillStyle = '#08081a'; ctx.fillRect(0,0,canvas.width,canvas.height);
-            // Виньетка
             const grd = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 100, canvas.width/2, canvas.height/2, canvas.width/1.5);
             grd.addColorStop(0, 'rgba(20, 30, 80, 0)');
             grd.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
             ctx.fillStyle = grd; ctx.fillRect(0,0,canvas.width,canvas.height);
 
-            // Тени стен
             for (let w of walls) { ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(w.x+8, w.y+8, w.w, w.h); }
             
-            // Стены
             for (let w of walls) {
                 if (w.type === 'brick') {
                     ctx.fillStyle = '#8a4a2a'; ctx.fillRect(w.x, w.y, w.w, w.h);
@@ -610,7 +715,6 @@
                 }
             }
 
-            // База
             if (base && base.alive) {
                 ctx.shadowColor = '#f0d060'; ctx.shadowBlur = 40;
                 ctx.fillStyle = '#f0d060'; ctx.fillRect(base.x, base.y, base.w, base.h);
@@ -627,7 +731,6 @@
                 ctx.fillText('✕', base.x+base.w/2, base.y+base.h/2);
             }
 
-            // Враги
             for (let e of enemies) {
                 if (!e.alive) continue;
                 let color = '#ff4422';
@@ -653,7 +756,6 @@
                 if (e.hp > 1) { ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 2; ctx.shadowColor = '#ffff00'; ctx.shadowBlur = 15; ctx.strokeRect(e.x-2, e.y-2, e.w+4, e.h+4); ctx.shadowBlur = 0; }
             }
 
-            // Игрок
             if (player.alive) {
                 ctx.shadowColor = playerBonuses.shield > 0 ? '#00aaff' : '#00ff88';
                 ctx.shadowBlur = 35;
@@ -673,7 +775,6 @@
                     ctx.fillRect(player.x+player.w-2-i*6, player.y+2, 4, 8); ctx.fillRect(player.x+player.w-2-i*6, player.y+player.h-10, 4, 8);
                 }
                 ctx.beginPath(); ctx.arc(cx, cy, 12, 0, 2*Math.PI); ctx.fillStyle = '#00aa55'; ctx.fill(); ctx.strokeStyle = '#006633'; ctx.lineWidth = 2; ctx.stroke();
-                // щит (эффект)
                 if (playerBonuses.shield > 0) {
                     ctx.strokeStyle = 'rgba(0, 170, 255, 0.6)';
                     ctx.lineWidth = 3;
@@ -683,7 +784,6 @@
                 }
             }
 
-            // Пули
             for (let b of bullets) {
                 ctx.shadowColor = b.power ? '#ff00ff' : '#ffaa00';
                 ctx.shadowBlur = 40;
@@ -694,7 +794,6 @@
                 ctx.fillRect(b.x - b.dx/2, b.y - b.dy/2, 8, 8);
             }
 
-            // Бонусы
             for (let b of bonuses) {
                 const bob = Math.sin(b.bob) * 3;
                 ctx.shadowColor = '#00ff88'; ctx.shadowBlur = 20;
@@ -709,17 +808,15 @@
                 ctx.shadowBlur = 0;
             }
 
-            // Частицы
             drawParticles();
 
-            // Экранные сообщения
             if (gameOver) {
                 ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0,0,canvas.width,canvas.height);
                 ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 40;
                 ctx.fillStyle = '#ff3333'; ctx.font = 'bold 60px "Courier New"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillText('GAME OVER', canvas.width/2, canvas.height/2 - 40);
                 ctx.shadowBlur = 0;
-                ctx.fillStyle = '#aaa'; ctx.font = '28px "Courier New"'; ctx.fillText('tap to restart', canvas.width/2, canvas.height/2 + 50);
+                ctx.fillStyle = '#aaa'; ctx.font = '28px "Courier New"'; ctx.fillText('tap to continue', canvas.width/2, canvas.height/2 + 50);
             } else if (roundComplete && !gameOver) {
                 ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(0,0,canvas.width,canvas.height);
                 ctx.shadowColor = '#00ff88'; ctx.shadowBlur = 50;
@@ -736,10 +833,48 @@
             requestAnimationFrame(gameLoop);
         }
 
-        function restartGame() {
-            if (!gameOver && !win) return;
-            initGame(); updateInfo();
+        // ---------- Управление экранами ----------
+        function showDifficultyScreen() {
+            difficultyScreen.style.display = 'flex';
+            // Скрываем игровые элементы управления, чтобы не мешали (опционально)
         }
+
+        function hideDifficultyScreen() {
+            difficultyScreen.style.display = 'none';
+        }
+
+        // ---------- Обработка выбора сложности ----------
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const diff = btn.dataset.diff;
+                initGame(diff);
+                hideDifficultyScreen();
+                // Сброс Game Over, если был
+                gameOver = false;
+                win = false;
+                updateInfo();
+                updateProgressBar();
+            });
+        });
+
+        // ---------- Обработка Game Over (возврат к выбору) ----------
+        // Вместо restartGame, мы будем показывать экран выбора при клике на canvas после Game Over.
+        // Модифицируем обработчик клика на canvas:
+        canvas.addEventListener('click', () => {
+            if (gameOver) {
+                // Показываем экран выбора сложности
+                showDifficultyScreen();
+                // Сбрасываем состояние игры (можно не обязательно, так как при новом выборе инициализируется)
+                gameOver = false;
+            }
+        });
+        canvas.addEventListener('touchend', (e) => {
+            if (gameOver) {
+                e.preventDefault();
+                showDifficultyScreen();
+                gameOver = false;
+            }
+        });
 
         // ---------- Управление ----------
         let joystickActive = false, joystickDir = {x:0,y:0}, firePressed = false;
@@ -784,9 +919,6 @@
         fireBtn.addEventListener('mousedown', () => { firePressed = true; initAudio(); });
         fireBtn.addEventListener('mouseup', () => { firePressed = false; });
 
-        canvas.addEventListener('click', () => { if (gameOver) restartGame(); });
-        canvas.addEventListener('touchend', e => { if (gameOver) { e.preventDefault(); restartGame(); } });
-
         fullscreenBtn.addEventListener('click', () => {
             initAudio();
             if (tg) {
@@ -811,8 +943,16 @@
 
         document.addEventListener('touchmove', e => { if (e.target.closest('.game-wrapper')) e.preventDefault(); }, { passive: false });
 
-        // ---------- Запуск ----------
-        initGame();
+        // ---------- Запуск: показываем экран выбора сложности ----------
+        // Инициализируем игру со значением по умолчанию (normal), но не запускаем.
+        // При загрузке страницы показываем экран выбора.
+        showDifficultyScreen();
+        // Предварительно инициализируем игру, чтобы данные были, но она неактивна.
+        initGame('normal');
+        // Скрываем игровой процесс до выбора.
+        gameOver = false; // чтобы не было лишнего
+
+        // Запускаем цикл
         gameLoop();
     })();
 </script>
