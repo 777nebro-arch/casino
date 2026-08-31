@@ -60,12 +60,16 @@
         .difficulty-btn.active { border-color: var(--accent); background: rgba(77, 166, 255, 0.2); color: var(--accent); }
         .desktop-hint { display: none; color: var(--text); font-size: 14px; text-align: center; width: 100%; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 60; backdrop-filter: blur(4px); }
-        .modal { width: 90%; max-width: 420px; background: var(--panel); border: 2px solid var(--accent); border-radius: 20px; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); color: var(--text); font-family: 'Inter', sans-serif; }
+        .modal { width: 90%; max-width: 420px; background: var(--panel); border: 2px solid var(--accent); border-radius: 20px; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); color: var(--text); font-family: 'Inter', sans-serif; max-height: 90vh; overflow-y: auto; }
         .modal h2 { color: var(--accent); text-align: center; margin-bottom: 18px; font-weight: 800; }
         .modal .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0; }
         .modal button { padding: 14px 20px; border-radius: 12px; border: 2px solid var(--accent); background: linear-gradient(145deg, var(--panel-dark), var(--panel)); color: var(--text); font-weight: 700; cursor: pointer; width: 100%; margin-top: 8px; font-family: 'Inter', sans-serif; transition: all 0.2s; }
         .modal button:hover { filter: brightness(1.2); }
         .modal .texture-btn { font-size: 18px; }
+        .color-palette { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 15px; }
+        .color-palette .color-btn { width: 45px; height: 45px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: transform 0.2s; }
+        .color-palette .color-btn:hover { transform: scale(1.15); }
+        .color-palette .color-btn.selected { border-color: #fff; }
         body.hide-touch .dpad-container, body.hide-touch .fire-btn { display: none !important; }
         body.hide-touch .controls { min-height: 0; padding: 6px 16px; }
         @media (hover: hover) and (pointer: fine) {
@@ -81,7 +85,7 @@
             .dpad-container { width: 70px; height: 70px; }
             .fire-btn { width: 70px; height: 70px; }
         }
-        @media (pointer: coarse) {
+        @media (hover: none) and (pointer: coarse) {
             .fullscreen-btn {
                 display: none !important;
             }
@@ -112,17 +116,28 @@
                 <h2>НАСТРОЙКИ</h2>
                 <div class="toggle-row">
                     <span>🔊 Звук</span>
-                    <input type="checkbox" id="soundToggle" checked>
+                    <input type="checkbox" id="soundToggle">
                 </div>
                 <div class="toggle-row">
                     <span>📻 Радио</span>
                     <input type="checkbox" id="radioToggle">
                 </div>
                 <div class="toggle-row">
+                    <span>🎨 Цвет интерфейса</span>
+                    <button class="color-open-btn" id="colorOpenBtn" style="width:auto; padding:8px 12px; font-size:14px;">ВЫБРАТЬ</button>
+                </div>
+                <div class="toggle-row">
                     <span>🎮 Скрыть сенсорные</span>
                     <input type="checkbox" id="hideTouchControls">
                 </div>
                 <button class="close-modal" id="closeSettingsBtn">ЗАКРЫТЬ</button>
+            </div>
+        </div>
+        <div class="modal-overlay" id="colorModal">
+            <div class="modal">
+                <h2>ВЫБОР ЦВЕТА</h2>
+                <div class="color-palette" id="colorPalette"></div>
+                <button class="close-modal" id="closeColorBtn">ЗАКРЫТЬ</button>
             </div>
         </div>
         <div class="modal-overlay" id="upgradeModal">
@@ -138,15 +153,37 @@
         </div>
         <div class="modal-overlay" id="infoModal">
             <div class="modal">
-                <h2>УПРАВЛЕНИЕ</h2>
-                <p><b>ПК:</b> WASD / стрелки — движение, Пробел — огонь, клик — выстрел.</p>
-                <p><b>Мобильные:</b> Джойстик — движение, кнопка огня — стрельба.</p>
-                <ul style="margin-left:20px; font-size:12px;">
-                    <li>Пауза: Esc/P</li>
-                    <li>Меню: M</li>
-                    <li>Редактор карт</li>
-                    <li>Улучшения</li>
+                <h2>ОБ ИГРЕ</h2>
+                <p><b>ТАНКИ 90х — DX</b> — аркадная игра в стиле классических танчиков.</p>
+                <h3>Управление</h3>
+                <p><b>ПК:</b> WASD или стрелки — движение, Пробел или клик — огонь, Esc/P — пауза, M — меню.</p>
+                <p><b>Мобильные:</b> джойстик слева — движение, круглая кнопка справа — огонь.</p>
+                <h3>Цель игры</h3>
+                <p>Защищайте базу (флаг) и уничтожайте вражеские танки. Волны врагов становятся сложнее с каждым раундом.</p>
+                <h3>Враги</h3>
+                <ul>
+                    <li>Обычный танк — стандартный противник.</li>
+                    <li>Быстрый — двигается быстрее.</li>
+                    <li>Бронированный — имеет больше HP.</li>
+                    <li>Стрелок — стреляет чаще.</li>
+                    <li>Штурмовик — агрессивно преследует игрока.</li>
+                    <li>Миномётчик — стреляет навесными снарядами.</li>
+                    <li>Телепорт — может перемещаться по карте.</li>
+                    <li>Босс — появляется каждый 5-й раунд, очень живучий.</li>
                 </ul>
+                <h3>Бонусы</h3>
+                <ul>
+                    <li>⚡ Скорость — временно увеличивает скорость.</li>
+                    <li>🛡️ Щит — защищает от одного попадания.</li>
+                    <li>💥 Урон — усиливает выстрелы.</li>
+                    <li>❤️ Жизнь — даёт дополнительную жизнь.</li>
+                    <li>❄️ Заморозка — враги замирают на время.</li>
+                    <li>👻 Невидимость — враги вас не видят.</li>
+                </ul>
+                <h3>Улучшения</h3>
+                <p>За уничтожение врагов вы получаете монеты. В магазине улучшений можно повысить скорость, броню, урон и скорострельность.</p>
+                <h3>Редактор карт</h3>
+                <p>Создайте свою карту: выбирайте блоки (кирпич, сталь, трава) и расставляйте их. Сохраняйте свои карты.</p>
                 <button class="close-modal" id="closeInfoBtn">ЗАКРЫТЬ</button>
             </div>
         </div>
@@ -208,15 +245,21 @@
 <script>
 (function() {
     // ===== Настройки =====
-    let gameSettings = { sound: true, difficulty: 'normal' };
+    let gameSettings = { sound: false, difficulty: 'normal' }; // звук выключен по умолчанию
     const soundToggle = document.getElementById('soundToggle');
     const hideTouch = document.getElementById('hideTouchControls');
     const radioToggle = document.getElementById('radioToggle');
     const radioAudio = document.getElementById('radioStream');
     let radioEnabled = false;
 
+    // Применяем сохранённые настройки
+    const savedSound = localStorage.getItem('tanks_sound');
+    if (savedSound !== null) gameSettings.sound = savedSound === '1';
+    soundToggle.checked = gameSettings.sound;
+
     soundToggle.addEventListener('change', (e) => {
         gameSettings.sound = e.target.checked;
+        localStorage.setItem('tanks_sound', gameSettings.sound ? '1' : '0');
         if (gameSettings.sound) audioCtx?.resume?.();
     });
 
@@ -243,7 +286,7 @@
     if (!('ontouchstart' in window) || window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
         document.getElementById('joystick').style.display = 'none';
         document.getElementById('fireBtn').style.display = 'none';
-        document.getElementById('fullscreenBtn').style.display = 'none';
+        // fullscreenBtn НЕ скрываем - она должна быть на ПК
     }
 
     // ===== Элементы =====
@@ -269,6 +312,59 @@
     const loadOverlay = document.getElementById('loadOverlay');
     const editorSettingsBtn = document.getElementById('editorSettingsBtn');
     const gameControls = document.getElementById('gameControls');
+    const colorModal = document.getElementById('colorModal');
+    const colorPalette = document.getElementById('colorPalette');
+    const colorOpenBtn = document.getElementById('colorOpenBtn');
+    const closeColorBtn = document.getElementById('closeColorBtn');
+
+    // ===== Выбор цвета =====
+    const colors = [
+        {name: 'Синий', value: '#4da6ff'},
+        {name: 'Красный', value: '#ff4757'},
+        {name: 'Зелёный', value: '#2ed573'},
+        {name: 'Фиолетовый', value: '#a55eea'},
+        {name: 'Оранжевый', value: '#ffa502'},
+        {name: 'Бирюзовый', value: '#00d2d3'},
+        {name: 'Розовый', value: '#ff79c6'},
+        {name: 'Жёлтый', value: '#f9ca24'},
+        {name: 'Серый', value: '#b0b0b0'},
+        {name: 'Коричневый', value: '#8b4513'},
+        {name: 'Лавандовый', value: '#b19cd9'},
+        {name: 'Мятный', value: '#98fb98'}
+    ];
+    
+    function setAccentColor(color) {
+        document.documentElement.style.setProperty('--accent', color);
+        document.documentElement.style.setProperty('--accent-hover', color + '99');
+        localStorage.setItem('tanks_accent', color);
+        document.querySelectorAll('.color-btn').forEach((btn, idx) => {
+            if (colors[idx].value === color) btn.classList.add('selected');
+            else btn.classList.remove('selected');
+        });
+    }
+    
+    function buildColorPalette() {
+        colorPalette.innerHTML = '';
+        colors.forEach(c => {
+            const btn = document.createElement('button');
+            btn.className = 'color-btn';
+            btn.style.background = c.value;
+            btn.title = c.name;
+            btn.dataset.color = c.value;
+            btn.addEventListener('click', () => {
+                setAccentColor(c.value);
+                closeModal(colorModal);
+            });
+            colorPalette.appendChild(btn);
+        });
+        const savedColor = localStorage.getItem('tanks_accent');
+        if (savedColor) setAccentColor(savedColor);
+        else setAccentColor(colors[0].value);
+    }
+    buildColorPalette();
+
+    colorOpenBtn.addEventListener('click', () => openModal(colorModal));
+    closeColorBtn.addEventListener('click', () => closeModal(colorModal));
 
     // ===== Константы =====
     const TILE = 60, COLS = 13, ROWS = 13;
