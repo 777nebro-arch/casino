@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>ТАНКИ 90х</title>
+    <title>ТАНКИ 90х — DX</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -70,6 +70,8 @@
         .color-palette .color-btn { width: 45px; height: 45px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: transform 0.2s; }
         .color-palette .color-btn:hover { transform: scale(1.15); }
         .color-palette .color-btn.selected { border-color: #fff; }
+        .custom-color-container { text-align: center; margin-top: 10px; }
+        .custom-color-container input[type="color"] { width: 80px; height: 40px; border: 2px solid var(--accent); border-radius: 8px; background: transparent; cursor: pointer; }
         body.hide-touch .dpad-container, body.hide-touch .fire-btn { display: none !important; }
         body.hide-touch .controls { min-height: 0; padding: 6px 16px; }
         @media (hover: hover) and (pointer: fine) {
@@ -137,6 +139,10 @@
             <div class="modal">
                 <h2>ВЫБОР ЦВЕТА</h2>
                 <div class="color-palette" id="colorPalette"></div>
+                <div class="custom-color-container">
+                    <label for="customColorPicker" style="color:var(--text); font-size:14px;">Или выберите свой цвет:</label><br>
+                    <input type="color" id="customColorPicker" value="#4da6ff">
+                </div>
                 <button class="close-modal" id="closeColorBtn">ЗАКРЫТЬ</button>
             </div>
         </div>
@@ -153,37 +159,21 @@
         </div>
         <div class="modal-overlay" id="infoModal">
             <div class="modal">
-                <h2>ОБ ИГРЕ</h2>
-                <p><b>ТАНКИ 90х — DX</b> — аркадная игра в стиле классических танчиков.</p>
+                <h2>ИНФО</h2>
                 <h3>Управление</h3>
-                <p><b>ПК:</b> WASD или стрелки — движение, Пробел или клик — огонь, Esc/P — пауза, M — меню.</p>
+                <p><b>ПК:</b> WASD/стрелки — движение, Пробел/клик — огонь, Esc/P — пауза, M — меню.</p>
                 <p><b>Мобильные:</b> джойстик слева — движение, круглая кнопка справа — огонь.</p>
-                <h3>Цель игры</h3>
-                <p>Защищайте базу (флаг) и уничтожайте вражеские танки. Волны врагов становятся сложнее с каждым раундом.</p>
-                <h3>Враги</h3>
+                <h3>Основные функции</h3>
                 <ul>
-                    <li>Обычный танк — стандартный противник.</li>
-                    <li>Быстрый — двигается быстрее.</li>
-                    <li>Бронированный — имеет больше HP.</li>
-                    <li>Стрелок — стреляет чаще.</li>
-                    <li>Штурмовик — агрессивно преследует игрока.</li>
-                    <li>Миномётчик — стреляет навесными снарядами.</li>
-                    <li>Телепорт — может перемещаться по карте.</li>
-                    <li>Босс — появляется каждый 5-й раунд, очень живучий.</li>
+                    <li>Защита базы и уничтожение врагов</li>
+                    <li>Раунды с нарастающей сложностью</li>
+                    <li>Боссы каждый 5-й раунд</li>
+                    <li>Бонусы: скорость, щит, урон, жизнь, заморозка, невидимость</li>
+                    <li>Улучшения за монеты: скорость, броня, урон, скорострельность</li>
+                    <li>Редактор карт для создания своих уровней</li>
+                    <li>Радио и выбор цвета интерфейса</li>
+                    <li>Полноэкранный режим</li>
                 </ul>
-                <h3>Бонусы</h3>
-                <ul>
-                    <li>⚡ Скорость — временно увеличивает скорость.</li>
-                    <li>🛡️ Щит — защищает от одного попадания.</li>
-                    <li>💥 Урон — усиливает выстрелы.</li>
-                    <li>❤️ Жизнь — даёт дополнительную жизнь.</li>
-                    <li>❄️ Заморозка — враги замирают на время.</li>
-                    <li>👻 Невидимость — враги вас не видят.</li>
-                </ul>
-                <h3>Улучшения</h3>
-                <p>За уничтожение врагов вы получаете монеты. В магазине улучшений можно повысить скорость, броню, урон и скорострельность.</p>
-                <h3>Редактор карт</h3>
-                <p>Создайте свою карту: выбирайте блоки (кирпич, сталь, трава) и расставляйте их. Сохраняйте свои карты.</p>
                 <button class="close-modal" id="closeInfoBtn">ЗАКРЫТЬ</button>
             </div>
         </div>
@@ -319,6 +309,7 @@
     const colorPalette = document.getElementById('colorPalette');
     const colorOpenBtn = document.getElementById('colorOpenBtn');
     const closeColorBtn = document.getElementById('closeColorBtn');
+    const customColorPicker = document.getElementById('customColorPicker');
 
     // ===== Выбор цвета =====
     const colors = [
@@ -340,10 +331,13 @@
         document.documentElement.style.setProperty('--accent', color);
         document.documentElement.style.setProperty('--accent-hover', color + '99');
         localStorage.setItem('tanks_accent', color);
+        // обновляем выбранный цвет в палитре
         document.querySelectorAll('.color-btn').forEach((btn, idx) => {
             if (colors[idx].value === color) btn.classList.add('selected');
             else btn.classList.remove('selected');
         });
+        // обновляем индикатор color picker
+        customColorPicker.value = color;
     }
     
     function buildColorPalette() {
@@ -365,6 +359,11 @@
         else setAccentColor(colors[0].value);
     }
     buildColorPalette();
+
+    // Обработчик выбора произвольного цвета
+    customColorPicker.addEventListener('input', (e) => {
+        setAccentColor(e.target.value);
+    });
 
     colorOpenBtn.addEventListener('click', () => openModal(colorModal));
     closeColorBtn.addEventListener('click', () => closeModal(colorModal));
