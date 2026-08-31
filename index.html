@@ -203,9 +203,7 @@
         <div class="info-item">МОНЕТЫ <span id="coinHud">0</span></div>
     </div>
 </div>
-
-<!-- Скрытый аудио элемент для радио -->
-<audio id="radioStream" src="https://play.tavr.media/kissfm/deep/" preload="none" loop></audio>
+<audio id="radioStream" preload="none" src="https://tavr.tvstitch.com/KissFM_Deep?gdpr=0&nonce=AQzzBGQEqkPe7z4E08FyK71c_mBxka8BkjOKTV24YCSqug6pRk9u-nz8pH9_TTk-4KLQG1plhHXCQzjcuCebPh33KnHgPH5Rp6MlgjUWgHQ-qlGtmAPSvkR6vocsKi9eBiATp1LcLY1KXIaKNLS2qT6EEvLD54FxiWQkynqwq7eSX-TGDaNarS_A6nORhKtpNPxxc1GcUYqR-acxfOqd9IlyjFI4oI0WOqe-92FoxbOU9B7F3AaJ9vtjX3bqxVzZmWlvpruxBMSzXU2oGoXM7-rEL4HNskE1N7wDz_AoS29OyPz0ic2AohlYj8mwhSOXuINR5H_3gthC8E5VN_lniE1x_Zd6JdZ8ByYXl97WUKUA3jh1YywXucxJqL4dBu-zrVrN5106k_9eJld_1l6IIFpfiLm0eLDsS5CGIubLV2VxY6C7da3hNF-FzeaWS6NUnMYIvuYPF_A_TToC_i_V55XUFmzN86-279Ar3QJO6Ke7HbTG4fCIbES4xsgZ-pqIMLvFN7rjtub81u9pqy6gWeMF9cIsUgPP_7RJk-vN_KkHZ8HfbPaI06aZ-DLlzWElWECZcLdyHFnDcGMo2HEOy4exQa1PahtezjkyeIZAfqHnWKVU2CZQzvWaMaATWQs5Rmm6KjkKaGxJvQ-j0bcH58_zaPSg-H3EV30rHeuE5eq039gyjo5thoX7tJ-5dN6vWJiyveKfiDHa2sb6vscYrk6gDVUhuxAed0FPfbEEnNq8I1_D3LoApRcutT8cZTXnS80Q4j_uX6ZuLBd6HVw154L6ImlMt1rP1KbNzyqaMoqOj32tzFYjuQR0SQXiWMAVRVHO17ifUNo8BK7MzWunzmo4xtyv-DFLISNXmOvYeuEQ0cAYhIQlnHJh9Qh_cHlx5L_6nsggerIXZWh85Gyaxlgm5oPvAIvBaVaIAlMJFglZUstejf1jYTZqzP9N6T3WSld-xdX1U-ibwZ6mXUeukUrfvKhqVpkmCHL6U9DzbAAP6Lkp6RD69DXVmJDKsPfjgPyGWDoLDU3W_9ARK3dfuw2K7TyPMUhFnFmtZwJs_TQ5gIb4V8yZd_oanz_ksboVtSKOnFIO9WGAhshtSUfHiQBI23AIxdd9rDqTBDYP9p9WdU80qtGf2w8b-AYlc-6feZFc5rIAsek85s9I4O4kHLaQxHAYlZ9H1iDoAoRWbMF_HnJOtjLUX2YUvD-C_4RALey9aW5ebETokG71D5TXwe5x2gy5piWCyGs3J2KLI3P1GX-GGITeeDRkdbgaRLmatgxekYxxEUg6_yHbFGI8puZHYvP2D5JUx4V7L2DyNRKyWkPqQtLfYs2Kz7_VYSm9x2GtZeApnwRHSwEMFg7ljYdkJUYRlL3SzzlAqbVGNwXoInj7_Q..&_nocache=1788136140376"></audio>
 
 <script>
 (function() {
@@ -214,33 +212,24 @@
     const soundToggle = document.getElementById('soundToggle');
     const hideTouch = document.getElementById('hideTouchControls');
     const radioToggle = document.getElementById('radioToggle');
-    const radioStream = document.getElementById('radioStream');
+    const radioAudio = document.getElementById('radioStream');
+    let radioEnabled = false;
 
     soundToggle.addEventListener('change', (e) => {
         gameSettings.sound = e.target.checked;
         if (gameSettings.sound) audioCtx?.resume?.();
     });
 
-    // Настройка радио
-    function setRadio(checked) {
-        radioToggle.checked = checked;
-        localStorage.setItem('radio_enabled', checked ? '1' : '0');
-        if (checked) {
-            radioStream.play().catch(() => { /* Автовоспроизведение может быть заблокировано */ });
-        } else {
-            radioStream.pause();
-            radioStream.currentTime = 0;
-        }
-    }
-
     radioToggle.addEventListener('change', (e) => {
-        setRadio(e.target.checked);
+        radioEnabled = e.target.checked;
+        if (radioEnabled) {
+            stopMusic();
+            radioAudio.play().catch(err => console.error('Ошибка воспроизведения радио:', err));
+        } else {
+            radioAudio.pause();
+            startMusic();
+        }
     });
-
-    // При загрузке – устанавливаем чекбокс из сохранённого значения, но НЕ запускаем радио автоматически (требование браузеров)
-    if (localStorage.getItem('radio_enabled') === '1') {
-        radioToggle.checked = true;
-    }
 
     function applyHideTouch() {
         document.body.classList.toggle('hide-touch', hideTouch.checked);
@@ -442,6 +431,7 @@
     }
     let musicTimer = null;
     function startMusic() {
+        if (radioEnabled) return;
         if(!gameSettings.sound || musicTimer || !audioCtx) return;
         const notes = [262, 294, 330, 392, 523, 440, 392, 330];
         let i = 0;
@@ -1293,7 +1283,6 @@
         loadLevel();
     }
 
-    // Обработчики для модального окна действий редактора
     document.getElementById('startEditorBtn').addEventListener('click', () => {
         startEditor();
         closeModal(editorModal);
@@ -1321,7 +1310,6 @@
         }
     }
 
-    // ===== Редактор: ввод =====
     function handleEditInput() {
         if (!editMode) return;
         if (editMoveCooldown > 0) editMoveCooldown--;
@@ -1365,7 +1353,6 @@
         if (!firePressed && !keys.fire) lastFireEdit = false;
     }
 
-    // ===== Пауза/Меню =====
     pauseBtn.addEventListener('click', () => {
         initAudio();
         if(editMode) exitEditor();
@@ -1381,7 +1368,6 @@
         if (gameStarted) { paused = false; pauseBtn.textContent = '⏸'; }
     });
 
-    // ===== Джойстик =====
     const joystickEl = document.getElementById('joystick');
     const fireBtn = document.getElementById('fireBtn');
     let firePointerId = null;
